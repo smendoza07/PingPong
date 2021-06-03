@@ -38,14 +38,22 @@ int Ball_Movement(int state) {
 
 	// Local Variables
 	static unsigned char pattern = 0x80;	// LED pattern - 0: LED off; 1: LED on
-	static unsigned char row = 0xFB;  	// Row(s) displaying pattern. 
+	//static unsigned char row = 0xFB;  	// Row(s) displaying pattern. 
 							// 0: display pattern on row
 							// 1: do NOT display pattern on row
 	// Transitions
 	switch (state) {
-		case shift_right:	
+		case shift_right:
+			if ( pattern == 0x01 )
+				state = shift_left;
+			else
+				state = shift_right;	
 			break;
 		case shift_left:
+			if ( pattern == 0x80 )
+				state = shift_right;
+			else
+				state = shift_left;
 			break;
 		default:	
 			state = shift_right;
@@ -54,23 +62,16 @@ int Ball_Movement(int state) {
 	// Actions
 	switch (state) {
 		case shift_right:	
-			if (pattern == 0x01) { // Reset demo 
-				state = shift_left;
-			} else { // Shift LED one spot to the right on current row
 				pattern >>= 1;
-			}
 			break;
 		case shift_left:
-			if (pattern == 0x80)
-				state = shift_right;
-			else
 				pattern <<= 1;
 			break;
 		default:
 			break;
 	}
 	ball_column = pattern;	// Pattern to display
-	ball_row = row;		// Row(s) displaying pattern	
+	//ball_row = row;		// Row(s) displaying pattern	
 	return state;
 }
 
@@ -78,11 +79,12 @@ enum P1_States { P1_Wait, P1_MoveUp, P1_MoveDown };
 
 int P1_Movement (int state) {
 	static unsigned char column = 0x80;
-	static unsigned char rows = 0x00;
+	static unsigned char rows[8] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 	static unsigned char i = 0;
 	
 	switch (state) {
 		case P1_Wait:
+			state = P1_Wait;
 			break;
 		case P1_MoveDown:
 			break;
@@ -93,7 +95,12 @@ int P1_Movement (int state) {
 	
 	switch (state) {
 		case P1_Wait:
-			rows = 0x00;
+			if ( i < 8 ) {
+				PORTD = rows[i];
+				i++;
+			}
+			else
+				i = 0;
 			break;
 		case P1_MoveDown:
 			break;
@@ -101,7 +108,6 @@ int P1_Movement (int state) {
 			
 	
 	P1_column = column;
-	P1_row = rows;
 	return state;
 }
 
@@ -109,10 +115,12 @@ enum P2_States { P2_Wait, P2_MoveUp, P2_MoveDown };
 
 int P2_Movement (int state) {
 	static unsigned char column = 0x01;
-	static unsigned char rows = 0x00;
-	
+	static unsigned char rows[5] = { 0x00, 0xFD, 0xFB, 0xF7, 0xFF };
+	static unsigned char i = 0;
+
 	switch (state) {
 		case P2_Wait:
+			state = P2_Wait;
 			break;
 		case P2_MoveDown:
 			break;
@@ -123,15 +131,18 @@ int P2_Movement (int state) {
 	
 	switch (state) {
 		case P2_Wait:
-			rows = 0x00;
+			if( i  < 4 ) {
+				PORTD = rows[i];
+				i++;
+			}
+			else
+				i = 0;
 			break;
 		case P2_MoveDown:
 			break;
 	}
 	
 	P2_column = column;
-	P2_row = rows;
-	PORTD = rows;
 	return state;
 }
 
@@ -140,7 +151,7 @@ enum display_States { display };
 // Combine outputs from SM's, and output on PORTB
 int displaySMTick(int state) {
 	// Local Variables
-	static unsigned char Column_output;
+	static unsigned char Column_output = 0x80;
 	static unsigned char Row_output;
 	
 	switch (state) { //State machine transitions
@@ -153,12 +164,16 @@ int displaySMTick(int state) {
 	}
 	switch(state) { //State machine actions
 		case display:	
-			Column_output = P1_column | P2_column | ball_column; // write shared outputs
-			Row_output = P1_row & P2_row & ball_row;	// to local variables
+			if (Column_output == 0x01 )
+				Column_output = 0x80;
+			else
+				Column_output
+			Column_output =; // write shared outputs
+			Row_output = P1_row | P2_row/* | ball_row*/;	// to local variables
 		break;
 	}
 	PORTC = Column_output;
-	PORTD = Row_output;// Write combined, shared output variables to PORTB
+	//PORTD = Row_output;// Write combined, shared output variables to PORTB
 	return state;
 }
 
@@ -175,25 +190,25 @@ int main() {
 
 	const char start = 0;
 	// Task 1 (Ball_Movement)
-	task1.state = start;//Task initial state.
+/*	task1.state = start;//Task initial state.
 	task1.period = 100;//Task Period.
 	task1.elapsedTime = task1.period;//Task current elapsed time.
 	task1.TickFct = &Ball_Movement;//Function pointer for the tick.
-	// Task 2 (P1_Movement)
-	task2.state = start;//Task initial state.
-	task2.period = 10;//Task Period.
-	task2.elapsedTime = task2.period;//Task current elapsed time.
-	task2.TickFct = &P1_Movement;//Function pointer for the tick.
+*/	// Task 2 (P1_Movement)
+	task1.state = start;//Task initial state.
+	task1.period = 1;//Task Period.
+	task1.elapsedTime = task1.period;//Task current elapsed time.
+	task1.TickFct = &P1_Movement;//Function pointer for the tick.
 	// Task 3 (P1_Movement)
-	task3.state = start;//Task initial state.
-	task3.period = 10;//Task Period.
-	task3.elapsedTime = task3.period;//Task current elapsed time.
-	task3.TickFct = &P2_Movement;//Function pointer for the tick.
+	task2.state = start;//Task initial state.
+	task2.period = 1;//Task Period.
+	task2.elapsedTime = task2.period;//Task current elapsed time.
+	task2.TickFct = &P2_Movement;//Function pointer for the tick.
 	// Task 4 (displaySMTick)
-	task4.state = start;//Task initial state.
-	task4.period = 1;//Task Period.
-	task4.elapsedTime = task4.period;//Task current elapsed time.
-	task4.TickFct = &displaySMTick;//Function pointer for the tick.
+	task3.state = start;//Task initial state.
+	task3.period = 1;//Task Period.
+	task3.elapsedTime = task3.period;//Task current elapsed time.
+	task3.TickFct = &displaySMTick;//Function pointer for the tick.
 	
 	unsigned short j;
 	unsigned long GCD = tasks[0]->period;
