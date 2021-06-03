@@ -70,8 +70,7 @@ int Ball_Movement(int state) {
 			break;
 	}
 	ball_column = pattern;	// Pattern to display
-	//ball_row = row;		// Row(s) displaying pattern
-	PORTD = row;	
+	ball_row = row;		// Row(s) displaying pattern	
 	return state;
 }
 
@@ -84,16 +83,8 @@ int P1_Movement (int state) {
 	
 	switch (state) {
 		case P1_Wait:
-			state = P1_MoveDown;
-			i = 0;
 			break;
 		case P1_MoveDown:
-			if(i < 7 ){
-				state = P1_MoveDown;
-				i++;
-			}
-			else
-				state = P1_Wait;
 			break;
 		default:
 			state = P1_Wait;
@@ -105,14 +96,12 @@ int P1_Movement (int state) {
 			rows = 0x00;
 			break;
 		case P1_MoveDown:
-			rows = 0xFF;
 			break;
 	}
 			
 	
 	P1_column = column;
-	//P1_row = rows;
-	PORTD = rows;
+	P1_row = rows;
 	return state;
 }
 
@@ -121,20 +110,11 @@ enum P2_States { P2_Wait, P2_MoveUp, P2_MoveDown };
 int P2_Movement (int state) {
 	static unsigned char column = 0x01;
 	static unsigned char rows = 0x00;
-	static unsigned char i = 0;
 	
 	switch (state) {
 		case P2_Wait:
-			state = P2_MoveDown;
-			i = 0;
 			break;
 		case P2_MoveDown:
-			if(i < 7){
-				state = P2_MoveDown;
-				i++;
-			}
-			else
-				state = P2_Wait;
 			break;
 		default:
 			state = P2_Wait;
@@ -146,12 +126,11 @@ int P2_Movement (int state) {
 			rows = 0x00;
 			break;
 		case P2_MoveDown:
-			rows = 0xFF;
 			break;
 	}
 	
 	P2_column = column;
-	//P2_row = rows;
+	P2_row = rows;
 	PORTD = rows;
 	return state;
 }
@@ -175,11 +154,11 @@ int displaySMTick(int state) {
 	switch(state) { //State machine actions
 		case display:	
 			Column_output = P1_column | P2_column | ball_column; // write shared outputs
-			//Row_output = P1_row & P2_row & ball_row;	// to local variables
+			Row_output = P1_row & P2_row & ball_row;	// to local variables
 		break;
 	}
 	PORTC = Column_output;
-	//PORTD = Row_output;// Write combined, shared output variables to PORTB
+	PORTD = Row_output;// Write combined, shared output variables to PORTB
 	return state;
 }
 
@@ -202,12 +181,12 @@ int main() {
 	task1.TickFct = &Ball_Movement;//Function pointer for the tick.
 	// Task 2 (P1_Movement)
 	task2.state = start;//Task initial state.
-	task2.period = 1;//Task Period.
+	task2.period = 10;//Task Period.
 	task2.elapsedTime = task2.period;//Task current elapsed time.
 	task2.TickFct = &P1_Movement;//Function pointer for the tick.
 	// Task 3 (P1_Movement)
 	task3.state = start;//Task initial state.
-	task3.period = 1;//Task Period.
+	task3.period = 10;//Task Period.
 	task3.elapsedTime = task3.period;//Task current elapsed time.
 	task3.TickFct = &P2_Movement;//Function pointer for the tick.
 	// Task 4 (displaySMTick)
