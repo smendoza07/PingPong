@@ -117,8 +117,47 @@ int P2_Movement (int state) {
 enum Ball_States { B_Init, shift_left, shift_right };
 
 int Ball_Movement(int state) {
+	static unsigned char x = 0x00;
+	static unsigned char i = 3;
+	switch (state) {
+		case B_Init:
+			state = shift_right;
+			break;
+		case shift_right:
+			if ( i == 6 )
+				state = shift_left;
+			else
+				state = shift_right;
+			break;
+		case shift_left:
+			if ( i == 1 )
+				state = shift_right;
+			else
+				state = shift_left;
+			break;
+		default:
+			state = B_Init;
+			break;
 
+	}
 
+	switch (state) {
+		case B_Init:
+			break;
+		case shift_right:
+			x = Ball_Location[i];
+			Ball_Location[i] = Ball_Location[i+1];
+			Ball_Location[i+1] = x;
+			i++;
+			break;
+		case shift_left:
+			x = Ball_Location[i];
+			Ball_Location[i] = Ball_Location[i-1];
+			Ball_Location[i-1] = x;
+			i--;
+		default:
+			break;
+	}
 	return state;
 }
 
@@ -179,26 +218,31 @@ int main() {
 	DDRD = 0xFF; PORTD = 0x00; // PC7..4 outputs init 0s, PC3..0 inputs init 1s
 
 	//Declare an array of tasks 
-	static task task1, task2, task3;
-	task *tasks[] = { &task1, &task2, &task3 };
+	static task task1, task2, task3, task4;
+	task *tasks[] = { &task1, &task2, &task3, &task4 };
 	const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 
 	const char start = 0;
-	//Task 1 (Paddle 1)
+	// Task 1 (Paddle 1)
 	task1.state = start;//Task initial state.
 	task1.period = 200;//Task Period.
 	task1.elapsedTime = task1.period;//Task current elapsed time.
 	task1.TickFct = &P1_Movement;//Function pointer for the tick.
-	//Task 2 (Paddle 2)
+	// Task 2 (Paddle 2)
 	task2.state = start;//Task initial state.
 	task2.period = 200;//Task Period.
 	task2.elapsedTime = task2.period;//Task current elapsed time.
 	task2.TickFct = &P2_Movement;//Function pointer for the tick.
-	// Task 1 (Ball_Movement)
+	// Task 3 (Ball_Movement)
 	task3.state = start;//Task initial state.
-	task3.period = 1;//Task Period.
+	task3.period = 100;//Task Period.
 	task3.elapsedTime = task3.period;//Task current elapsed time.
-	task3.TickFct = &Demo_Tick;//Function pointer for the tick.
+	task3.TickFct = &Ball_Movement;//Function pointer for the tick.
+	// Task 4 (DisplaySM)
+	task4.state = start;//Task initial state.
+	task4.period = 1;//Task Period.
+	task4.elapsedTime = task4.period;//Task current elapsed time.
+	task4.TickFct = &Demo_Tick;//Function pointer for the tick.
 
 	
 	unsigned short j;
