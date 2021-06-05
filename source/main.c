@@ -21,11 +21,8 @@
 
 //-----------Gobal Declarations---------
 unsigned char ball_row = 0x00;
-unsigned char ball_column = 0x00;
-unsigned char P1_column = 0x00;
-unsigned char P1_row = 0x00;
-unsigned char P2_column = 0x00;
-unsigned char P2_row = 0x00;
+unsigned char P1_paddle = 0x00;
+unsigned char P2_paddle = 0x00;
 //-----------end Globals----------------
 
 //--------------------------------------
@@ -70,19 +67,21 @@ int Ball_Movement(int state) {
 		default:
 			break;
 	}
-	ball_column = pattern;	// Pattern to display
+	//ball_column = pattern;	// Pattern to display
 	//ball_row = row;		// Row(s) displaying pattern	
 	return state;
 }
 
-enum P1_States { P1_Wait, P1_MoveUp, P1_MoveDown };
+enum P1_States { P1_Init, P1_Wait, P1_MoveUp, P1_MoveDown };
 
 int P1_Movement (int state) {
-	static unsigned char column = 0x80;
-	static unsigned char rows[8] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-	static unsigned char i = 0;
-	
+//	static unsigned char rows[8] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+//	static unsigned char i;
+	static unsigned char rows = 0xF0;	
 	switch (state) {
+		case P1_Init:
+			state = P1_Wait;
+			break;
 		case P1_Wait:
 			state = P1_Wait;
 			break;
@@ -94,45 +93,53 @@ int P1_Movement (int state) {
 	}
 	
 	switch (state) {
+		case P1_Init:
+		//	i = 0;
+			break;
 		case P1_Wait:
-			if ( i < 8 ) {
-				PORTD = rows[i];
-				i++;
-			}
-			else
-				i = 0;
+		//	if ( i < 7 ) {
+				P1_paddle = rows;
+		//		i++;
+		//	}
+		//	else
+		//		i = 0;
 			break;
 		case P1_MoveDown:
 			break;
 	}
 			
 	
-	P1_column = column;
+	
 	return state;
 }
 
-enum P2_States { P2_Wait, P2_MoveUp, P2_MoveDown };
+enum P2_States { P2_Init, P2_Wait, P2_MoveUp, P2_MoveDown };
 
 int P2_Movement (int state) {
-	static unsigned char column = 0x01;
-	static unsigned char rows[5] = { 0x00, 0xFD, 0xFB, 0xF7, 0xFF };
-	static unsigned char i = 0;
+	static unsigned char rows[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
+	static unsigned char i;
 
 	switch (state) {
+		case P2_Init:
+			state = P2_Wait;
+			break;
 		case P2_Wait:
 			state = P2_Wait;
 			break;
 		case P2_MoveDown:
 			break;
 		default:
-			state = P2_Wait;
+			state = P2_Init;
 			break;
 	}
 	
 	switch (state) {
+		case P2_Init:
+			i = 0;
+			break;
 		case P2_Wait:
-			if( i  < 4 ) {
-				PORTD = rows[i];
+			if( i  < 7 ) {
+				P2_paddle = rows[i];
 				i++;
 			}
 			else
@@ -142,7 +149,7 @@ int P2_Movement (int state) {
 			break;
 	}
 	
-	P2_column = column;
+	
 	return state;
 }
 
@@ -152,7 +159,6 @@ enum display_States { display };
 int displaySMTick(int state) {
 	// Local Variables
 	static unsigned char Column_output = 0x80;
-	static unsigned char Row_output;
 	
 	switch (state) { //State machine transitions
 		case display: 
@@ -164,16 +170,17 @@ int displaySMTick(int state) {
 	}
 	switch(state) { //State machine actions
 		case display:	
-			if (Column_output == 0x01 )
-				Column_output = 0x80;
-			else
-				Column_output
-			Column_output =; // write shared outputs
-			Row_output = P1_row | P2_row/* | ball_row*/;	// to local variables
-		break;
-	}
-	PORTC = Column_output;
-	//PORTD = Row_output;// Write combined, shared output variables to PORTB
+			if (Column_output == 0x01) { // Reset demo 
+				Column_output = 0x80;		    
+			} else { // Shift LED one spot to the right on current row
+				Column_output >>= 1;
+			}
+			break;
+		default:
+			break;
+	}	
+	PORTC = 0x80;
+	PORTD = 0xFE;// Write combined, shared output variables to PORTB
 	return state;
 }
 
@@ -196,12 +203,12 @@ int main() {
 	task1.TickFct = &Ball_Movement;//Function pointer for the tick.
 */	// Task 2 (P1_Movement)
 	task1.state = start;//Task initial state.
-	task1.period = 1;//Task Period.
+	task1.period = 50;//Task Period.
 	task1.elapsedTime = task1.period;//Task current elapsed time.
 	task1.TickFct = &P1_Movement;//Function pointer for the tick.
 	// Task 3 (P1_Movement)
 	task2.state = start;//Task initial state.
-	task2.period = 1;//Task Period.
+	task2.period = 50;//Task Period.
 	task2.elapsedTime = task2.period;//Task current elapsed time.
 	task2.TickFct = &P2_Movement;//Function pointer for the tick.
 	// Task 4 (displaySMTick)
