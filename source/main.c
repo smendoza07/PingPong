@@ -110,6 +110,7 @@ int P1_Movement (int state) {
 	switch (state) {
 		case P1_Init:
 			P1_Rows[0] = 0xF1;
+			i = 1;
 			break;
 		case P1_Wait:
 			break;
@@ -136,30 +137,42 @@ int P2_Movement (int state) {
 
 	switch (state) {
 		case P2_Init:
-			state = P2_Wait;
+			if(start == 1)
+				state = P2_Wait;
+			else if(start == 0)
+				state = P2_Init;
 			break;
 		case P2_Wait:
-			state = P2_MoveUp;
+			if(start == 0)
+				state = P2_Init;
+			else
+				state = P2_MoveUp;
 			break;
 		case P2_MoveUp:
-			if ( i == 0)
+			if(start == 0)
+				state = P2_Init;
+			else if ((start == 1) &&  (i == 0))
 				state = P2_MoveDown;
 			else
 				state = P2_MoveUp;
 			break;
 		case P2_MoveDown:
-			if ( i == 2 )
+			if(start == 0)
+				state = P2_Init;
+			else if ((start == 1) && (i == 2))
 				state = P2_MoveUp;
 			else 
 				state = P2_MoveDown;
 			break;
 		default:
-			state = P2_Wait;
+			state = P2_Init;
 			break;
 	}
 
 	switch (state) {
 		case P2_Init:
+			P2_Rows[7] = 0xF1;
+			i = 1;
 			break;
 		case P2_Wait:
 			break;
@@ -185,7 +198,7 @@ int Ball_YMovement(int state){
 
 	switch(state) {
 		case BY_Init:
-			state = BY_Wait;
+			state = shift_down;
 			break;
 		case BY_Wait:
 			if( Ball_Location[current] == ((previous >> 1) | 0x80))
