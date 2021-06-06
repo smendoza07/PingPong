@@ -198,10 +198,15 @@ int Ball_YMovement(int state){
 
 	switch(state) {
 		case BY_Init:
-			state = shift_down;
+			if(start == 1)
+				state = shift_down;
+			else if(start == 0)
+				state = BY_Init;
 			break;
 		case BY_Wait:
-			if( Ball_Location[current] == ((previous >> 1) | 0x80))
+			if(start == 0)
+				state = BY_Init;
+			else if( Ball_Location[current] == ((previous >> 1) | 0x80))
 				state = shift_up;
 			else if( Ball_Location[current] == ((previous << 1) | 0x01))
 				state = shift_down;
@@ -209,13 +214,17 @@ int Ball_YMovement(int state){
 				state = BY_Wait;
 			break;
 		case shift_down:
-			if ( Ball_Location[current] == 0xEF && previous == 0xF7 )
+			if(start == 0)
+				state = BY_Init;
+			else if ( Ball_Location[current] == 0xEF && previous == 0xF7 )
 				state = shift_up;
 			else
 				state = shift_down;	
 			break;
 		case shift_up:
-			if ( Ball_Location[current] == 0xFE && previous == 0xFD )
+			if(start == 0)
+				state = BY_Init;
+			else if ( Ball_Location[current] == 0xFE && previous == 0xFD )
 				state = shift_down;
 			else
 				state = shift_up;
@@ -227,6 +236,7 @@ int Ball_YMovement(int state){
 
 	switch(state) {
 		case BY_Init:
+			previous = 0x00;
 			break;
 		case BY_Wait:
 			break;
