@@ -13,8 +13,59 @@ unsigned char P1_Rows[8] = { 0xF1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 unsigned char P2_Rows[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1 };
 int current = 3;
 int Ball_Speed = 100;
+unsigned int start = 0;
 //-----------end Globals----------------
 
+enum Start_States { Reset, Start, Reset_Hold, Start_Hold };
+
+int StartSM (int state) {
+	switch (state) {
+		case Reset:
+			if ((~PINA & 0x10) == 0x10)
+				state = Start_Hold;
+			else if((~PINA & 0x10) == 0x00)
+				state = Reset;
+			break;
+		case Reset_Hold:
+			if ((~PINA & 0x10) == 0x10)
+				state = Reset_Hold;
+			else if((~PINA & 0x10) == 0x00)
+				state = Reset;
+			break;
+		case Start_Hold:
+			if ((~PINA & 0x10) == 0x10)
+				state = Start_Hold;
+			else if ((~PINA & 0x10) == 0x00)
+				state = Start;
+			break;
+		case Start:
+			if ((~PINA & 0x10) == 0x10)
+				state = Reset_Hold;
+			else if ((~PINA & 0x10) == 0x00)
+				state = Start;
+			break;
+		default:
+			state = Reset;
+			break;
+	}
+
+	switch (state) {
+		case Reset:
+			start = 0;
+			break;
+		case Reset_Hold:
+			break;
+		case Start_Hold:
+			break;
+		case Start:
+			start = 1;
+			break;
+		default:
+			break;
+	}
+	
+	return state;
+}
 
 enum P1_States { P1_Init, P1_Wait, P1_MoveUp, P1_MoveDown };
 
@@ -24,30 +75,41 @@ int P1_Movement (int state) {
 
 	switch (state) {
 		case P1_Init:
-			state = P1_Wait;
+			if(start == 1)
+				state = P1_Wait;
+			else if(start == 0)
+				state = P1_Init;
 			break;
 		case P1_Wait:
-			state = P1_MoveDown;
+			if(start == 0)
+				state = P1_Init;
+			else
+				state = P1_MoveDown;
 			break;
 		case P1_MoveUp:
-			if ( i == 0)
+			if (start == 0)
+				state = P1_Init;
+			else if ((start == 1) && (i == 0))
 				state = P1_MoveDown;
 			else
 				state = P1_MoveUp;
 			break;
 		case P1_MoveDown:
-			if ( i == 2 )
+			if (start == 0)
+				state = P1_Init;
+			else if ((start == 1) && (i == 2))
 				state = P1_MoveUp;
 			else 
 				state = P1_MoveDown;
 			break;
 		default:
-			state = P1_Wait;
+			state = P1_Init;
 			break;
 	}
 
 	switch (state) {
 		case P1_Init:
+			P1_Rows[0] = 0xF1;
 			break;
 		case P1_Wait:
 			break;
@@ -125,8 +187,13 @@ int Ball_YMovement(int state){
 		case BY_Init:
 			state = BY_Wait;
 			break;
-		case BY_Wait: 
-			state = shift_down;
+		case BY_Wait:
+			if( Ball_Location[current] == ((previous >> 1) | 0x80))
+				state = shift_up;
+			else if( Ball_Location[current] == ((previous << 1) | 0x01))
+				state = shift_down;
+			else
+				state = BY_Wait;
 			break;
 		case shift_down:
 			if ( Ball_Location[current] == 0xEF && previous == 0xF7 )
@@ -264,40 +331,46 @@ int DisplaySM(int state) {
 }
 
 int main() {
-	DDRC = 0xFF; PORTC = 0x00; // PORTB set to output, outputs init 0s
+	DDRA = 0x00; PORTA = 0xFF; // Initialize PORTA to input
+	DDRC = 0xFF; PORTC = 0x00; // Initialize PORTC to ouput
 	DDRD = 0xFF; PORTD = 0x00; // PC7..4 outputs init 0s, PC3..0 inputs init 1s
 
 	//Declare an array of tasks 
-	static task task1, task2, task3, task4, task5;
-	task *tasks[] = { &task1, &task2, &task3, &task4, &task5 };
+	static task task1, task2, task3, task4, task5, task6;
+	task *tasks[] = { &task1, &task2, &task3, &task4, &task5, &task6 };
 	const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 	
 	const char start = 0;
-	// Task 1 (Paddle 1)
+	// Task 1 (Start)
 	task1.state = start;//Task initial state.
-	task1.period = 200;//Task Period.
+	task1.period = 100;//Task Period.
 	task1.elapsedTime = task1.period;//Task current elapsed time.
-	task1.TickFct = &P1_Movement;//Function pointer for the tick.
-	// Task 2 (Paddle 2)
+	task1.TickFct = &StartSM;//Function pointer for the tick.
+	// Task 2 (Paddle 1)
 	task2.state = start;//Task initial state.
 	task2.period = 200;//Task Period.
 	task2.elapsedTime = task2.period;//Task current elapsed time.
-	task2.TickFct = &P2_Movement;//Function pointer for the tick.
-	// Task 3 (Ball Y Axis)
+	task2.TickFct = &P1_Movement;//Function pointer for the tick.
+	// Task 2 (Paddle 2)
 	task3.state = start;//Task initial state.
-	task3.period = Ball_Speed;//Task Period.
+	task3.period = 200;//Task Period.
 	task3.elapsedTime = task3.period;//Task current elapsed time.
-	task3.TickFct = &Ball_YMovement;//Function pointer for the tick.
-	//Task 4 (Ball X Axis)
+	task3.TickFct = &P2_Movement;//Function pointer for the tick.
+	// Task 4 (Ball Y Axis)
 	task4.state = start;//Task initial state.
 	task4.period = Ball_Speed;//Task Period.
 	task4.elapsedTime = task4.period;//Task current elapsed time.
-	task4.TickFct = &Ball_XMovement;//Function pointer for the tick.
-	// Task 5 (Display)
+	task4.TickFct = &Ball_YMovement;//Function pointer for the tick.
+	//Task 5 (Ball X Axis)
 	task5.state = start;//Task initial state.
-	task5.period = 1;//Task Period.
+	task5.period = Ball_Speed;//Task Period.
 	task5.elapsedTime = task5.period;//Task current elapsed time.
-	task5.TickFct = &DisplaySM;//Function pointer for the tick.
+	task5.TickFct = &Ball_XMovement;//Function pointer for the tick.
+	// Task 6 (Display)
+	task6.state = start;//Task initial state.
+	task6.period = 1;//Task Period.
+	task6.elapsedTime = task6.period;//Task current elapsed time.
+	task6.TickFct = &DisplaySM;//Function pointer for the tick.
 
 	
 	unsigned short j;
