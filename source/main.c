@@ -11,6 +11,8 @@
 unsigned char Ball_Location[8] = { 0xFF, 0xFF, 0xFF, 0xFB, 0xFF, 0xFF, 0xFF, 0xFF };
 unsigned char P1_Rows[8] = { 0xF1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 unsigned char P2_Rows[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1 };
+int current = 3;
+int Ball_Speed = 100;
 //-----------end Globals----------------
 
 
@@ -114,47 +116,96 @@ int P2_Movement (int state) {
 	return state;
 }
 
-enum Ball_States { B_Init, shift_left, shift_right };
+enum BallY_States { BY_Init, BY_Wait, shift_down, shift_up };
 
-int Ball_Movement(int state) {
+int Ball_YMovement(int state){
+	static unsigned char previous = 0x00;
+
+	switch(state) {
+		case BY_Init:
+			state = BY_Wait;
+			break;
+		case BY_Wait: 
+			state = shift_down;
+			break;
+		case shift_down:
+			if ( Ball_Location[current] == 0xEF && previous == 0xF7 )
+				state = shift_up;
+			else
+				state = shift_down;	
+			break;
+		case shift_up:
+			if ( Ball_Location[current] == 0xFE && previous == 0xFD )
+				state = shift_down;
+			else
+				state = shift_up;
+			break;
+		default:
+			state = BY_Init;
+			break;
+	}
+
+	switch(state) {
+		case BY_Init:
+			break;
+		case BY_Wait:
+			break;
+		case shift_down:
+			previous = Ball_Location[current];
+			Ball_Location[current] = ( Ball_Location[current] << 1 ) | 0x01;
+			break;
+		case shift_up:
+			previous = Ball_Location[current];
+			Ball_Location[current] = ( Ball_Location[current] >> 1 ) | 0x80;
+			break;
+		default:
+			break;
+	}
+
+	return state;
+}
+
+enum BallX_States { BX_Init, shift_left, shift_right };
+
+int Ball_XMovement(int state) {
 	static unsigned char x = 0x00;
-	static unsigned char i = 3;
+	
 	switch (state) {
-		case B_Init:
+		case BX_Init:
 			state = shift_right;
 			break;
 		case shift_right:
-			if ( i == 6 )
+			if ( current == 6 )
 				state = shift_left;
 			else
 				state = shift_right;
 			break;
 		case shift_left:
-			if ( i == 1 )
+			if ( current == 1 )
 				state = shift_right;
 			else
 				state = shift_left;
 			break;
 		default:
-			state = B_Init;
+			state = BX_Init;
 			break;
 
 	}
 
 	switch (state) {
-		case B_Init:
+		case BX_Init:
 			break;
 		case shift_right:
-			x = Ball_Location[i];
-			Ball_Location[i] = Ball_Location[i+1];
-			Ball_Location[i+1] = x;
-			i++;
+			x = Ball_Location[current];
+			Ball_Location[current] = Ball_Location[current+1];
+			Ball_Location[current+1] = x;
+			current++;
 			break;
 		case shift_left:
-			x = Ball_Location[i];
-			Ball_Location[i] = Ball_Location[i-1];
-			Ball_Location[i-1] = x;
-			i--;
+			x = Ball_Location[current];
+			Ball_Location[current] = Ball_Location[current-1];
+			Ball_Location[current-1] = x;
+			current--;
 		default:
 			break;
 	}
@@ -164,43 +215,42 @@ int Ball_Movement(int state) {
 
 
 //--------------------------------------
-// LED Matrix Demo SynchSM
-// Period: 100 ms
+// LED Matrix Display SM
 //--------------------------------------
-enum Demo_States {shift};
+enum Display_States { display };
 
-int Demo_Tick(int state) {
+int DisplaySM(int state) {
 
 	// Local Variables
-	static unsigned char pattern = 0x80;	// LED pattern - 0: LED off; 1: LED on
+	static unsigned char column = 0x80;
 	static unsigned char i = 0;
 	static unsigned char P1_Paddle = 0x00;
 	static unsigned char P2_Paddle = 0x00;
 	static unsigned char Ball = 0x00;
 	// Transitions
 	switch (state) {
-		case shift:	
+		case display:	
 			break;
 		default:	
-			state = shift;
+			state = display;
 			break;
 	}	
 	// Actions
 	switch (state) {
-		case shift:	
-			if (pattern == 0x01) { // Reset demo 
+		case display:	
+			if (column == 0x01) {
 				i = 0;
 				P1_Paddle = P1_Rows[i];
 				P2_Paddle = P2_Rows[i];
 				Ball = Ball_Location[i];
-				pattern = 0x80;
+				column = 0x80;
 				i++;		
 			}
-			else { // Shift LED one spot to the right on current row
+			else {
 				P1_Paddle = P1_Rows[i];
 				P2_Paddle = P2_Rows[i];
 				Ball = Ball_Location[i];
-				pattern >>= 1;
+				column >>= 1;
 				i++;
 			
 			}
@@ -208,7 +258,7 @@ int Demo_Tick(int state) {
 		default:
 			break;
 	}
-	PORTC = pattern;	// Pattern to display
+	PORTC = column	;				// Pattern to display
 	PORTD = P1_Paddle & P2_Paddle & Ball;		// Row(s) displaying pattern	
 	return state;
 }
@@ -218,10 +268,10 @@ int main() {
 	DDRD = 0xFF; PORTD = 0x00; // PC7..4 outputs init 0s, PC3..0 inputs init 1s
 
 	//Declare an array of tasks 
-	static task task1, task2, task3, task4;
-	task *tasks[] = { &task1, &task2, &task3, &task4 };
+	static task task1, task2, task3, task4, task5;
+	task *tasks[] = { &task1, &task2, &task3, &task4, &task5 };
 	const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
-
+	
 	const char start = 0;
 	// Task 1 (Paddle 1)
 	task1.state = start;//Task initial state.
@@ -233,16 +283,21 @@ int main() {
 	task2.period = 200;//Task Period.
 	task2.elapsedTime = task2.period;//Task current elapsed time.
 	task2.TickFct = &P2_Movement;//Function pointer for the tick.
-	// Task 3 (Ball_Movement)
+	// Task 3 (Ball Y Axis)
 	task3.state = start;//Task initial state.
-	task3.period = 100;//Task Period.
+	task3.period = Ball_Speed;//Task Period.
 	task3.elapsedTime = task3.period;//Task current elapsed time.
-	task3.TickFct = &Ball_Movement;//Function pointer for the tick.
-	// Task 4 (DisplaySM)
+	task3.TickFct = &Ball_YMovement;//Function pointer for the tick.
+	//Task 4 (Ball X Axis)
 	task4.state = start;//Task initial state.
-	task4.period = 1;//Task Period.
+	task4.period = Ball_Speed;//Task Period.
 	task4.elapsedTime = task4.period;//Task current elapsed time.
-	task4.TickFct = &Demo_Tick;//Function pointer for the tick.
+	task4.TickFct = &Ball_XMovement;//Function pointer for the tick.
+	// Task 5 (Display)
+	task5.state = start;//Task initial state.
+	task5.period = 1;//Task Period.
+	task5.elapsedTime = task5.period;//Task current elapsed time.
+	task5.TickFct = &DisplaySM;//Function pointer for the tick.
 
 	
 	unsigned short j;
