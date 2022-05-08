@@ -1,13 +1,13 @@
 /*	Author: Saul Mendoza
- *  Partner(s) Name: 
+ *  	Partner(s) Name: 
  *	Lab Section: 22
  *	Assignment: Lab #11  Exercise #1
- *	Exercise Description: [optional - include for your own benefit]
+ *	Exercise Description: Ping Pong game vs AI using lcd screen.
  *
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
  *
- *	Demo Link: 
+ *	Demo Link: https://youtube.com/shorts/cyE-3rrtRfc
  *
  */
 
