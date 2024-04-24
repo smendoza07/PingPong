@@ -2,6 +2,7 @@
 
 ## Description
 This repository contains the code for a simple Pong game implemented on an AVR microcontroller. The game features two paddles controlled by the player and an animated ball bouncing between the paddles.
+Demo Link: [Youtube Demo](https://youtube.com/shorts/cyE-3rrtRfc)
 
 ## Table of Contents
 - [Description](#description)
